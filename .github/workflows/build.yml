@@ -17,7 +17,7 @@ jobs:
           docker run --rm -v "$PWD/services/${{ matrix.service }}:/workspace" \
             gcr.io/kaniko-project/executor:latest \
             --context=/workspace --dockerfile=/workspace/Dockerfile \
-            --destination=registry.local:5000/staybook/${{ matrix.service }}:${{ github.sha }} \
+            --destination=localhost:5000/staybook/${{ matrix.service }}:${{ github.sha }} \
             --insecure --skip-tls-verify
       - name: Bump chart image tag
         run: |

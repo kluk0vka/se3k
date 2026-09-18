@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: registry-node-proxy
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: registry-node-proxy
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: registry-node-proxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: registry-node-proxy
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: type
+                    operator: NotIn
+                    values: ["kwok"]
+      tolerations:
+        - operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: socat
+          image: alpine/socat:1.8.0.3
+          args:
+            - TCP-LISTEN:5000,reuseaddr,fork
+            - TCP:registry.kube-system.svc.cluster.local:80
+          ports:
+            - containerPort: 5000
+              hostPort: 5000
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {memory: 64Mi}

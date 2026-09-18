@@ -14,4 +14,9 @@ minikube start -p "$PROFILE" \
 
 cilium status --wait || true
 cilium hubble enable --ui || true
+kubectl -n kube-system delete ds registry-proxy --ignore-not-found
+kubectl apply -f "$(dirname "$0")/../../platform/registry/node-proxy.yaml"
+docker rm -f registry-fwd >/dev/null 2>&1 || true
+docker run -d --name registry-fwd --restart unless-stopped --network=host \
+  alpine/socat TCP-LISTEN:5000,reuseaddr,fork "TCP:$(minikube -p "$PROFILE" ip):5000"
 kubectl get nodes -o wide

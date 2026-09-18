@@ -1,6 +1,6 @@
 replicaCount: 2
 image:
-  repository: registry.local:5000/staybook/catalog-service
+  repository: localhost:5000/staybook/catalog-service
   tag: "0.1.0"
   pullPolicy: IfNotPresent
 service:
