@@ -62,9 +62,9 @@ spec:
           ports:
             - containerPort: 6379
           readinessProbe:
-            exec:
-              command: ["sh", "-c", "valkey-cli -a \"$VALKEY_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
-            periodSeconds: 5
+            tcpSocket:
+              port: 6379
+            periodSeconds: 10
           resources:
             requests: {cpu: 50m, memory: 128Mi}
             limits: {memory: 256Mi}

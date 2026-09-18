@@ -54,10 +54,9 @@ spec:
           ports:
             - containerPort: 27017
           readinessProbe:
-            exec:
-              command: ["mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+            tcpSocket:
+              port: 27017
             periodSeconds: 10
-            timeoutSeconds: 5
           resources:
             requests: {cpu: 100m, memory: 256Mi}
             limits: {memory: 512Mi}

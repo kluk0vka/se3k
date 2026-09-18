@@ -28,5 +28,5 @@ kubectl get secret -n $NS -o name | grep -E "hubble|cilium-ca" | while read -r s
 helm repo add cilium https://helm.cilium.io >/dev/null 2>&1 || true
 helm repo update cilium >/dev/null
 helm upgrade --install $REL cilium/cilium --version "$VERSION" -n $NS \
-  -f "$(dirname "$0")/../../platform/cilium/values.yaml" --force-conflicts --wait --timeout 10m
+  -f "$(dirname "$0")/../../platform/cilium/values.yaml" --server-side=true --force-conflicts --wait --timeout 10m
 cilium status --wait

@@ -15,7 +15,7 @@ patches:
       - op: add
         path: /data
         value:
-          timeout.reconciliation: 60s
+          timeout.reconciliation: 180s
           kustomize.buildOptions: --enable-helm
   - target: {kind: Deployment, name: argocd-dex-server}
     patch: |

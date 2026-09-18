@@ -65,7 +65,7 @@ vlagent:
 vmagent:
   enabled: true
   spec:
-    scrapeInterval: 15s
+    scrapeInterval: 30s
     selectAllByDefault: true
     resources:
       requests: {cpu: 50m, memory: 128Mi}

@@ -28,9 +28,9 @@ hubble:
       - icmp
       - "httpV2:exemplars=true;labelsContext=source_ip,source_namespace,source_workload,destination_ip,destination_namespace,destination_workload,traffic_direction"
   relay:
-    enabled: true
+    enabled: false
   ui:
-    enabled: true
+    enabled: false
 cni:
   exclusive: false
 rollOutCiliumPods: true

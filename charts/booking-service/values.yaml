@@ -1,4 +1,4 @@
-replicaCount: 2
+replicaCount: 1
 image:
   repository: localhost:5000/staybook/booking-service
   tag: "0.2.0"
