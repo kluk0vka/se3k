@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "staybook-common"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi==0.115.*",
+  "uvicorn[standard]==0.32.*",
+  "pydantic-settings==2.*",
+  "aiokafka==0.12.*",
+  "prometheus-client==0.21.*",
+  "prometheus-fastapi-instrumentator==7.*",
+  "opentelemetry-api==1.28.2",
+  "opentelemetry-sdk==1.28.2",
+  "opentelemetry-distro==0.49b2",
+  "opentelemetry-exporter-otlp==1.28.2",
+  "opentelemetry-instrumentation-fastapi==0.49b2",
+  "opentelemetry-instrumentation-httpx==0.49b2",
+  "opentelemetry-instrumentation-asyncpg==0.49b2",
+]
+
+[tool.setuptools]
+packages = ["staybook_common"]

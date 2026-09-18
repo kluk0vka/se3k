@@ -110,3 +110,40 @@ resource "kubernetes_secret_v1" "grafana_admin" {
     admin-password = random_password.grafana_admin.result
   }
 }
+
+resource "random_password" "postgres_superuser" {
+  length  = 24
+  special = false
+}
+
+resource "random_password" "mongo_root" {
+  length  = 24
+  special = false
+}
+
+resource "kubernetes_secret_v1" "postgres_init" {
+  metadata {
+    name      = "postgres-init"
+    namespace = kubernetes_namespace_v1.ns["data"].metadata[0].name
+    labels    = local.common_labels
+  }
+  data = merge(
+    { POSTGRES_PASSWORD = random_password.postgres_superuser.result },
+    { for s in local.postgres_services : "${upper(replace(s, "-service", ""))}_PASSWORD" => random_password.postgres[s].result }
+  )
+}
+
+resource "kubernetes_secret_v1" "mongo_init" {
+  metadata {
+    name      = "mongo-init"
+    namespace = kubernetes_namespace_v1.ns["data"].metadata[0].name
+    labels    = local.common_labels
+  }
+  data = merge(
+    {
+      MONGO_INITDB_ROOT_USERNAME = "root"
+      MONGO_INITDB_ROOT_PASSWORD = random_password.mongo_root.result
+    },
+    { for s in local.mongo_services : "${upper(replace(s, "-service", ""))}_PASSWORD" => random_password.mongo[s].result }
+  )
+}

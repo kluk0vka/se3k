@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-initdb
+  namespace: data
+data:
+  10-services.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    for svc in booking inventory payment; do
+      var="${svc^^}_PASSWORD"
+      psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<SQL
+    CREATE ROLE ${svc} LOGIN PASSWORD '${!var}';
+    CREATE DATABASE ${svc} OWNER ${svc};
+    SQL
+    done
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname inventory -c "CREATE EXTENSION IF NOT EXISTS btree_gist;"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: data
+  labels:
+    app.kubernetes.io/name: postgres
+spec:
+  selector:
+    app.kubernetes.io/name: postgres
+  ports:
+    - {name: tcp-postgres, port: 5432, targetPort: 5432}
+    - {name: http-metrics, port: 9187, targetPort: 9187}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: data
+  labels:
+    app.kubernetes.io/name: postgres
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          args:
+            - -c
+            - max_connections=150
+            - -c
+            - shared_buffers=128MB
+            - -c
+            - effective_cache_size=256MB
+            - -c
+            - work_mem=4MB
+          env:
+            - {name: POSTGRES_USER, value: postgres}
+            - {name: PGDATA, value: /var/lib/postgresql/data/pgdata}
+          envFrom:
+            - secretRef:
+                name: postgres-init
+          ports:
+            - containerPort: 5432
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            periodSeconds: 5
+          resources:
+            requests: {cpu: 100m, memory: 192Mi}
+            limits: {memory: 384Mi}
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/postgresql/data}
+            - {name: initdb, mountPath: /docker-entrypoint-initdb.d}
+        - name: exporter
+          image: quay.io/prometheuscommunity/postgres-exporter:v0.17.1
+          env:
+            - name: DATA_SOURCE_PASS
+              valueFrom:
+                secretKeyRef: {name: postgres-init, key: POSTGRES_PASSWORD}
+            - {name: DATA_SOURCE_URI, value: "localhost:5432/postgres?sslmode=disable"}
+            - {name: DATA_SOURCE_USER, value: postgres}
+          ports:
+            - containerPort: 9187
+          resources:
+            requests: {cpu: 10m, memory: 24Mi}
+            limits: {memory: 64Mi}
+      volumes:
+        - name: initdb
+          configMap:
+            name: postgres-initdb
+            defaultMode: 0755
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi

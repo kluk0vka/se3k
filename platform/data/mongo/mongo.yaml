@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongo-initdb
+  namespace: data
+data:
+  10-services.js: |
+    const users = [
+      {db: "catalog", user: "catalog", pwd: process.env.CATALOG_PASSWORD},
+      {db: "notifications", user: "notification", pwd: process.env.NOTIFICATION_PASSWORD},
+    ];
+    for (const u of users) {
+      db.getSiblingDB(u.db).createUser({user: u.user, pwd: u.pwd, roles: [{role: "readWrite", db: u.db}]});
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo
+  namespace: data
+  labels:
+    app.kubernetes.io/name: mongo
+spec:
+  selector:
+    app.kubernetes.io/name: mongo
+  ports:
+    - {name: tcp-mongo, port: 27017, targetPort: 27017}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongo
+  namespace: data
+  labels:
+    app.kubernetes.io/name: mongo
+spec:
+  serviceName: mongo
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mongo
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mongo
+    spec:
+      containers:
+        - name: mongo
+          image: mongo:7.0
+          args: ["--wiredTigerCacheSizeGB", "0.25", "--bind_ip_all"]
+          envFrom:
+            - secretRef:
+                name: mongo-init
+          ports:
+            - containerPort: 27017
+          readinessProbe:
+            exec:
+              command: ["mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 512Mi}
+          volumeMounts:
+            - {name: data, mountPath: /data/db}
+            - {name: initdb, mountPath: /docker-entrypoint-initdb.d}
+      volumes:
+        - name: initdb
+          configMap:
+            name: mongo-initdb
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi
