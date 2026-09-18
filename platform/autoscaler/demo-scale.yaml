@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: autoscale-demo
+  namespace: default
+spec:
+  replicas: 10
+  selector:
+    matchLabels: {app: autoscale-demo}
+  template:
+    metadata:
+      labels: {app: autoscale-demo}
+    spec:
+      nodeSelector:
+        type: kwok
+      tolerations:
+      - key: kwok.x-k8s.io/node
+        operator: Exists
+        effect: NoSchedule
+      - key: kwok-provider
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: pause
+        image: registry.k8s.io/pause:3.10
+        resources:
+          requests: {cpu: "1", memory: 512Mi}

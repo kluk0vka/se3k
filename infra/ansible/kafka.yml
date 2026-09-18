@@ -1,0 +1,5 @@
+- name: Deploy Kafka via Strimzi
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - strimzi_kafka

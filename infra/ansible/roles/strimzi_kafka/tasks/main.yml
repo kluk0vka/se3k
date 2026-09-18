@@ -1,0 +1,23 @@
+- name: Install Strimzi operator
+  kubernetes.core.helm:
+    name: strimzi
+    chart_ref: oci://quay.io/strimzi-helm/strimzi-kafka-operator
+    chart_version: "{{ strimzi_chart_version }}"
+    release_namespace: "{{ strimzi_namespace }}"
+    create_namespace: true
+    wait: true
+
+- name: Apply KafkaNodePool and Kafka (KRaft)
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ strimzi_namespace }}"
+    template: kafka.yaml.j2
+    wait: true
+    wait_condition: {type: Ready, status: "True"}
+    wait_timeout: 900
+
+- name: Apply topics
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ strimzi_namespace }}"
+    template: topics.yaml.j2

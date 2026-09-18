@@ -1,0 +1,7 @@
+galaxy_info:
+  role_name: strimzi_kafka
+  description: Deploy Apache Kafka on Kubernetes via the Strimzi operator
+  min_ansible_version: "2.15"
+dependencies: []
+collections:
+  - kubernetes.core

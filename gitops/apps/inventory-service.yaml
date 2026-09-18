@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: inventory-service
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/kluk0vka/se3k.git
+    targetRevision: main
+    path: charts/inventory-service
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: staybook
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}

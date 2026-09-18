@@ -1,0 +1,15 @@
+{% for t in kafka_topics %}
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: {{ t.name | replace('.', '-') }}
+  labels:
+    strimzi.io/cluster: {{ kafka_cluster_name }}
+spec:
+  topicName: {{ t.name }}
+  partitions: {{ t.partitions }}
+  replicas: 3
+  config:
+    retention.ms: 604800000
+{% endfor %}

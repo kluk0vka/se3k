@@ -1,0 +1,18 @@
+cloudProvider: kwok
+autoDiscovery:
+  clusterName: staybook
+extraArgs:
+  scan-interval: 10s
+  scale-down-enabled: true
+  scale-down-delay-after-add: 1m
+  scale-down-unneeded-time: 1m
+  scale-down-utilization-threshold: 0.5
+  expander: least-waste
+  skip-nodes-with-local-storage: false
+  logtostderr: true
+  v: 3
+resources:
+  requests: {cpu: 50m, memory: 128Mi}
+  limits: {memory: 300Mi}
+serviceMonitor:
+  enabled: false

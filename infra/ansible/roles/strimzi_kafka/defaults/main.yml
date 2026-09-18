@@ -1,0 +1,17 @@
+strimzi_namespace: kafka
+strimzi_chart_version: "0.48.0"
+kafka_cluster_name: kafka
+kafka_version: "4.1.0"
+kafka_replicas: 3
+kafka_storage_size: 5Gi
+kafka_topics:
+  - {name: booking.requested, partitions: 6}
+  - {name: booking.confirmed, partitions: 6}
+  - {name: booking.cancelled, partitions: 6}
+  - {name: inventory.held, partitions: 6}
+  - {name: inventory.rejected, partitions: 6}
+  - {name: inventory.released, partitions: 6}
+  - {name: payment.succeeded, partitions: 6}
+  - {name: payment.failed, partitions: 6}
+  - {name: payment.refunded, partitions: 6}
+  - {name: catalog.room-updated, partitions: 3}
