@@ -9,8 +9,8 @@ metadata:
 spec:
   topicName: {{ t.name }}
   partitions: {{ t.partitions }}
-  replicas: {{ t.replicas | default(3) }}
+  replicas: {{ t.replicas | default(kafka_replication_factor) }}
   config:
     retention.ms: {{ t.retention_ms | default(kafka_topic_retention_ms) }}
-    min.insync.replicas: 2
+    min.insync.replicas: {{ kafka_min_insync_replicas }}
 {% endfor %}

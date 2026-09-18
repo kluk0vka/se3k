@@ -10,7 +10,7 @@ victoria-metrics-operator:
 defaultDashboards:
   enabled: true
 defaultRules:
-  enabled: true
+  enabled: false
 vmsingle:
   enabled: true
   spec:
@@ -58,6 +58,7 @@ vlagent:
   spec:
     k8sCollector:
       enabled: true
+      excludeFilter: kubernetes.namespace_name:in(kube-system,observability,argocd,local-path-storage)
     resources:
       requests: {cpu: 20m, memory: 48Mi}
       limits: {memory: 192Mi}

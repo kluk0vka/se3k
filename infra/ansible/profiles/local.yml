@@ -1,0 +1,7 @@
+kafka_replicas: 1
+kafka_replication_factor: 1
+kafka_min_insync_replicas: 1
+kafka_heap: 320m
+kafka_resources:
+  requests: {cpu: 200m, memory: 640Mi}
+  limits: {memory: 896Mi}

@@ -1,5 +1,6 @@
 SHELL := /bin/bash
 CLUSTER ?= staybook
+KAFKA_PROFILE ?= local
 
 .PHONY: tools cluster bootstrap kafka platform edge destroy
 
@@ -16,7 +17,7 @@ bootstrap:
 	kubectl apply -f gitops/root/root-app.yaml
 
 kafka:
-	cd infra/ansible && ansible-playbook kafka.yml
+	cd infra/ansible && ansible-playbook kafka.yml -e @profiles/$(KAFKA_PROFILE).yml
 
 platform:
 	kustomize build platform/storage | kubectl apply -f -

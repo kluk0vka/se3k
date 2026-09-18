@@ -4,6 +4,8 @@ kafka_namespace: kafka
 kafka_cluster_name: kafka
 kafka_version: "4.3.1"
 kafka_replicas: 3
+kafka_replication_factor: 3
+kafka_min_insync_replicas: 2
 kafka_storage_size: 5Gi
 kafka_storage_class: local-path
 kafka_heap: 384m
