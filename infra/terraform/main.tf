@@ -93,3 +93,20 @@ resource "kubernetes_secret_v1" "valkey" {
     VALKEY_PASSWORD = random_password.valkey.result
   }
 }
+
+resource "random_password" "grafana_admin" {
+  length  = 20
+  special = false
+}
+
+resource "kubernetes_secret_v1" "grafana_admin" {
+  metadata {
+    name      = "grafana-admin"
+    namespace = kubernetes_namespace_v1.ns["observability"].metadata[0].name
+    labels    = local.common_labels
+  }
+  data = {
+    admin-user     = "admin"
+    admin-password = random_password.grafana_admin.result
+  }
+}

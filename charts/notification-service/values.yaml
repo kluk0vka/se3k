@@ -1,4 +1,4 @@
-replicaCount: 2
+replicaCount: 1
 image:
   repository: localhost:5000/staybook/notification-service
   tag: "0.1.0"

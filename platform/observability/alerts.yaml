@@ -1,0 +1,78 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: staybook
+  namespace: observability
+spec:
+  groups:
+    - name: staybook.services
+      rules:
+        - alert: ServiceHighErrorRate
+          expr: |
+            sum by (destination_workload) (rate(istio_requests_total{reporter="destination",destination_workload_namespace="staybook",response_code=~"5.."}[5m]))
+            / sum by (destination_workload) (rate(istio_requests_total{reporter="destination",destination_workload_namespace="staybook"}[5m])) > 0.05
+          for: 2m
+          labels: {severity: critical}
+          annotations:
+            summary: "{{ $labels.destination_workload }}: 5xx > 5%"
+        - alert: ServiceHighLatencyP95
+          expr: |
+            histogram_quantile(0.95, sum by (destination_workload, le) (rate(istio_request_duration_milliseconds_bucket{reporter="destination",destination_workload_namespace="staybook"}[5m]))) > 500
+          for: 5m
+          labels: {severity: warning}
+          annotations:
+            summary: "{{ $labels.destination_workload }}: p95 latency {{ $value | humanize }} ms"
+        - alert: CircuitBreakerEjection
+          expr: sum by (app, cluster_name) (envoy_cluster_outlier_detection_ejections_active) > 0
+          for: 30s
+          labels: {severity: warning}
+          annotations:
+            summary: "Outlier detection ejected hosts of {{ $labels.cluster_name }} (seen from {{ $labels.app }})"
+        - alert: CircuitBreakerOverflow
+          expr: sum by (app, cluster_name) (rate(envoy_cluster_upstream_rq_pending_overflow[1m])) > 0
+          for: 30s
+          labels: {severity: warning}
+          annotations:
+            summary: "Connection pool overflow to {{ $labels.cluster_name }}"
+    - name: staybook.edge
+      rules:
+        - alert: RateLimitSpike
+          expr: |
+            sum(rate(istio_requests_total{source_workload="staybook-gateway-istio",response_code="429"}[5m]))
+            / sum(rate(istio_requests_total{source_workload="staybook-gateway-istio"}[5m])) > 0.1
+          for: 2m
+          labels: {severity: warning}
+          annotations:
+            summary: "More than 10% of gateway requests are rate limited"
+        - alert: EdgeBalancerBackendDown
+          expr: haproxy_server_status{proxy="be_gateway_nodes",state="UP"} == 0
+          for: 1m
+          labels: {severity: warning}
+          annotations:
+            summary: "HAProxy {{ $labels.instance }}: backend {{ $labels.server }} is down"
+        - alert: EdgeBalancerDown
+          expr: up{job="edge-haproxy"} == 0
+          for: 30s
+          labels: {severity: critical}
+          annotations:
+            summary: "HAProxy instance {{ $labels.instance }} is unreachable"
+    - name: staybook.kafka
+      rules:
+        - alert: KafkaConsumerLagHigh
+          expr: sum by (consumergroup, topic) (kafka_consumergroup_lag) > 1000
+          for: 5m
+          labels: {severity: warning}
+          annotations:
+            summary: "Consumer group {{ $labels.consumergroup }} lag on {{ $labels.topic }}: {{ $value }}"
+        - alert: KafkaUnderReplicatedPartitions
+          expr: sum(kafka_topic_partition_under_replicated_partition) > 0
+          for: 2m
+          labels: {severity: critical}
+          annotations:
+            summary: "Kafka has under-replicated partitions"
+        - alert: KafkaBrokerDown
+          expr: count(up{strimzi_name="kafka-kafka"} == 1) < 3
+          for: 1m
+          labels: {severity: critical}
+          annotations:
+            summary: "Less than 3 Kafka brokers are up"

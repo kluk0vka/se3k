@@ -1,0 +1,122 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: istio-proxies
+  namespace: observability
+spec:
+  namespaceSelector:
+    any: true
+  selector:
+    matchExpressions:
+      - {key: security.istio.io/tlsMode, operator: Exists}
+  podMetricsEndpoints:
+    - port: http-envoy-prom
+      path: /stats/prometheus
+      relabelConfigs:
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - sourceLabels: [__meta_kubernetes_pod_label_app]
+          targetLabel: app
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: istiod
+  namespace: observability
+spec:
+  namespaceSelector:
+    matchNames: [istio-system]
+  selector:
+    matchLabels:
+      app: istiod
+  endpoints:
+    - port: http-monitoring
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: kafka
+  namespace: observability
+spec:
+  namespaceSelector:
+    matchNames: [kafka]
+  selector:
+    matchExpressions:
+      - {key: strimzi.io/kind, operator: In, values: [Kafka]}
+      - {key: strimzi.io/name, operator: In, values: [kafka-kafka, kafka-kafka-exporter]}
+  podMetricsEndpoints:
+    - port: tcp-prometheus
+      path: /metrics
+      relabelConfigs:
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - sourceLabels: [__meta_kubernetes_pod_label_strimzi_io_name]
+          targetLabel: strimzi_name
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: ratelimit
+  namespace: observability
+spec:
+  namespaceSelector:
+    matchNames: [edge]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ratelimit
+  endpoints:
+    - port: http-metrics
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: valkey
+  namespace: observability
+spec:
+  namespaceSelector:
+    matchNames: [data]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: valkey
+  endpoints:
+    - port: http-metrics
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: cilium
+  namespace: observability
+spec:
+  namespaceSelector:
+    matchNames: [kube-system]
+  selector:
+    matchLabels:
+      k8s-app: cilium
+  podMetricsEndpoints:
+    - port: prometheus
+    - port: hubble-metrics
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: otel-collector
+  namespace: observability
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opentelemetry-collector
+  endpoints:
+    - port: metrics
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMStaticScrape
+metadata:
+  name: edge-haproxy
+  namespace: observability
+spec:
+  jobName: edge-haproxy
+  targetEndpoints:
+    - targets: ["192.168.58.11:8404", "192.168.58.12:8404"]
+      path: /metrics

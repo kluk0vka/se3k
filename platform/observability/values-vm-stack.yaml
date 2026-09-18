@@ -1,0 +1,152 @@
+fullnameOverride: vm
+global:
+  clusterLabel: cluster
+
+victoria-metrics-operator:
+  resources:
+    requests: {cpu: 50m, memory: 96Mi}
+    limits: {memory: 256Mi}
+  admissionWebhooks:
+    enabled: false
+
+defaultDashboards:
+  enabled: true
+
+defaultRules:
+  enabled: true
+
+vmsingle:
+  enabled: true
+  spec:
+    retentionPeriod: "7d"
+    extraArgs:
+      search.maxUniqueTimeseries: "300000"
+      opentelemetry.usePrometheusNaming: "true"
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+      limits: {memory: 768Mi}
+    storage:
+      accessModes: [ReadWriteOnce]
+      resources:
+        requests:
+          storage: 5Gi
+
+vlsingle:
+  enabled: true
+  spec:
+    retentionPeriod: "3d"
+    resources:
+      requests: {cpu: 50m, memory: 128Mi}
+      limits: {memory: 384Mi}
+    storage:
+      accessModes: [ReadWriteOnce]
+      resources:
+        requests:
+          storage: 3Gi
+
+vtsingle:
+  enabled: true
+  spec:
+    retentionPeriod: "3d"
+    resources:
+      requests: {cpu: 50m, memory: 128Mi}
+      limits: {memory: 384Mi}
+    storage:
+      accessModes: [ReadWriteOnce]
+      resources:
+        requests:
+          storage: 3Gi
+
+vlagent:
+  enabled: true
+  spec:
+    k8sCollector:
+      enabled: true
+    resources:
+      requests: {cpu: 20m, memory: 48Mi}
+      limits: {memory: 192Mi}
+
+vmagent:
+  enabled: true
+  spec:
+    scrapeInterval: 15s
+    selectAllByDefault: true
+    resources:
+      requests: {cpu: 50m, memory: 128Mi}
+      limits: {memory: 384Mi}
+
+vmalert:
+  enabled: true
+  spec:
+    evaluationInterval: 30s
+    selectAllByDefault: true
+    resources:
+      requests: {cpu: 20m, memory: 48Mi}
+      limits: {memory: 192Mi}
+
+alertmanager:
+  enabled: true
+  spec:
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+      limits: {memory: 128Mi}
+  config:
+    route:
+      receiver: webhook-log
+      group_by: [alertname, namespace]
+      group_wait: 15s
+      group_interval: 1m
+      repeat_interval: 4h
+      routes:
+        - receiver: blackhole
+          matchers:
+            - alertname =~ "InfoInhibitor|Watchdog"
+    receivers:
+      - name: blackhole
+      - name: webhook-log
+        webhook_configs:
+          - url: http://alert-webhook-logger.observability.svc:8080/
+            send_resolved: true
+
+grafana:
+  enabled: true
+  adminUser: admin
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  plugins:
+    - victoriametrics-logs-datasource
+  persistence:
+    enabled: false
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 384Mi}
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      searchNamespace: ALL
+  grafana.ini:
+    analytics:
+      check_for_updates: false
+      reporting_enabled: false
+
+prometheus-node-exporter:
+  resources:
+    requests: {cpu: 10m, memory: 24Mi}
+    limits: {memory: 64Mi}
+
+kube-state-metrics:
+  resources:
+    requests: {cpu: 10m, memory: 48Mi}
+    limits: {memory: 128Mi}
+
+kubeEtcd:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeProxy:
+  enabled: false

@@ -14,6 +14,7 @@ minikube start -p "$PROFILE" \
 
 cilium status --wait || true
 cilium hubble enable --ui || true
+kubectl taint node "$PROFILE" node-role.kubernetes.io/control-plane=:NoSchedule --overwrite
 kubectl -n kube-system delete ds registry-proxy --ignore-not-found
 kubectl apply -f "$(dirname "$0")/../../platform/registry/node-proxy.yaml"
 docker rm -f registry-fwd >/dev/null 2>&1 || true
