@@ -1,0 +1,35 @@
+global_defs {
+    router_id ${LB_NAME}
+    script_user root
+    enable_script_security
+}
+
+vrrp_script chk_haproxy {
+    script "/usr/bin/pgrep -x haproxy"
+    interval 1
+    timeout 1
+    fall 1
+    rise 2
+}
+
+vrrp_instance VI_EDGE {
+    state ${VRRP_STATE}
+    interface eth0
+    virtual_router_id 58
+    priority ${VRRP_PRIORITY}
+    advert_int 1
+    unicast_src_ip ${LB_IP}
+    unicast_peer {
+        ${PEER_IP}
+    }
+    authentication {
+        auth_type PASS
+        auth_pass ${VRRP_PASS}
+    }
+    virtual_ipaddress {
+        ${VIP}/24 dev eth0
+    }
+    track_script {
+        chk_haproxy
+    }
+}

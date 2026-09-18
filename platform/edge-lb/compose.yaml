@@ -1,0 +1,47 @@
+name: staybook-edge
+
+x-lb: &lb
+  image: staybook/edge-lb:0.1.0
+  restart: unless-stopped
+  cap_add: [NET_ADMIN, NET_BROADCAST, NET_RAW]
+  sysctls:
+    net.ipv4.ip_nonlocal_bind: "1"
+
+services:
+  haproxy-1:
+    <<: *lb
+    build: .
+    container_name: haproxy-1
+    hostname: haproxy-1
+    environment:
+      LB_NAME: haproxy-1
+      LB_IP: 192.168.58.11
+      PEER_IP: 192.168.58.12
+      VRRP_STATE: MASTER
+      VRRP_PRIORITY: "110"
+      VIP: 192.168.58.100
+      VRRP_PASS: ${VRRP_PASS:-sb-vrrp}
+    networks:
+      staybook:
+        ipv4_address: 192.168.58.11
+
+  haproxy-2:
+    <<: *lb
+    depends_on: [haproxy-1]
+    container_name: haproxy-2
+    hostname: haproxy-2
+    environment:
+      LB_NAME: haproxy-2
+      LB_IP: 192.168.58.12
+      PEER_IP: 192.168.58.11
+      VRRP_STATE: BACKUP
+      VRRP_PRIORITY: "100"
+      VIP: 192.168.58.100
+      VRRP_PASS: ${VRRP_PASS:-sb-vrrp}
+    networks:
+      staybook:
+        ipv4_address: 192.168.58.12
+
+networks:
+  staybook:
+    external: true

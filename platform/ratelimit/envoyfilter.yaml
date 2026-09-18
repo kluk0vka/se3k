@@ -25,7 +25,7 @@ spec:
             "@type": type.googleapis.com/envoy.extensions.filters.http.ratelimit.v3.RateLimit
             domain: staybook-gateway
             failure_mode_deny: false
-            timeout: 0.1s
+            timeout: 0.25s
             enable_x_ratelimit_headers: DRAFT_VERSION_03
             rate_limit_service:
               transport_api_version: V3
