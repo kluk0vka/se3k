@@ -1,0 +1,21 @@
+{{- if .Values.mesh.enabled }}
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: {{ .Chart.Name }}
+  labels: {{- include "svc.labels" . | nindent 4 }}
+spec:
+  hosts:
+    - {{ .Chart.Name }}.{{ .Release.Namespace }}.svc.cluster.local
+  http:
+    - timeout: {{ .Values.mesh.timeout }}
+      retries: {{- toYaml .Values.mesh.retries | nindent 8 }}
+      {{- with .Values.mesh.fault }}
+      fault: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      route:
+        - destination:
+            host: {{ .Chart.Name }}.{{ .Release.Namespace }}.svc.cluster.local
+            port:
+              number: {{ .Values.service.port }}
+{{- end }}

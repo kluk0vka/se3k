@@ -16,7 +16,7 @@ bootstrap:
 	kubectl apply -f gitops/root/root-app.yaml
 
 kafka:
-	ansible-playbook -i localhost, -c local infra/ansible/kafka.yml
+	cd infra/ansible && ansible-playbook kafka.yml
 
 destroy:
 	minikube delete -p $(CLUSTER)

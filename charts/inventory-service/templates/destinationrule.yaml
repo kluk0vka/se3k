@@ -1,0 +1,14 @@
+{{- if .Values.mesh.enabled }}
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: {{ .Chart.Name }}
+  labels: {{- include "svc.labels" . | nindent 4 }}
+spec:
+  host: {{ .Chart.Name }}.{{ .Release.Namespace }}.svc.cluster.local
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_REQUEST
+    connectionPool: {{- toYaml .Values.mesh.connectionPool | nindent 6 }}
+    outlierDetection: {{- toYaml .Values.mesh.outlierDetection | nindent 6 }}
+{{- end }}

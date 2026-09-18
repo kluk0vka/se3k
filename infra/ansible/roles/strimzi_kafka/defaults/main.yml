@@ -1,9 +1,16 @@
 strimzi_namespace: kafka
-strimzi_chart_version: "0.48.0"
+strimzi_chart_version: "1.2.0"
+kafka_namespace: kafka
 kafka_cluster_name: kafka
-kafka_version: "4.1.0"
+kafka_version: "4.3.1"
 kafka_replicas: 3
 kafka_storage_size: 5Gi
+kafka_storage_class: local-path
+kafka_heap: 384m
+kafka_resources:
+  requests: {cpu: 200m, memory: 768Mi}
+  limits: {memory: 1Gi}
+kafka_topic_retention_ms: 604800000
 kafka_topics:
   - {name: booking.requested, partitions: 6}
   - {name: booking.confirmed, partitions: 6}

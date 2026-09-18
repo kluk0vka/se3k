@@ -1,0 +1,29 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  name: staybook
+  namespace: istio-system
+spec:
+  profile: minimal
+  meshConfig:
+    accessLogFile: /dev/stdout
+    accessLogEncoding: JSON
+    enableTracing: true
+    defaultConfig:
+      holdApplicationUntilProxyStarts: true
+    outboundTrafficPolicy:
+      mode: ALLOW_ANY
+  components:
+    pilot:
+      k8s:
+        resources:
+          requests: {cpu: 100m, memory: 256Mi}
+          limits: {memory: 512Mi}
+  values:
+    global:
+      proxy:
+        resources:
+          requests: {cpu: 20m, memory: 48Mi}
+          limits: {memory: 128Mi}
+    pilot:
+      autoscaleEnabled: false

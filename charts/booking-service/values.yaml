@@ -19,3 +19,34 @@ env:
   POSTGRES_HOST: postgres.data
 secretEnvFrom:
   - booking-service-postgres
+mesh:
+  enabled: true
+  timeout: 5s
+  retries:
+    attempts: 2
+    perTryTimeout: 2s
+    retryOn: connect-failure,refused-stream,unavailable,cancelled,gateway-error,reset
+  connectionPool:
+    tcp:
+      maxConnections: 100
+      connectTimeout: 1s
+    http:
+      http1MaxPendingRequests: 50
+      http2MaxRequests: 200
+      maxRequestsPerConnection: 0
+      maxRetries: 3
+  outlierDetection:
+    consecutive5xxErrors: 5
+    consecutiveGatewayErrors: 3
+    interval: 10s
+    baseEjectionTime: 30s
+    maxEjectionPercent: 50
+    minHealthPercent: 0
+  fault: null
+route:
+  enabled: true
+  pathPrefix: /bookings
+  stripPrefix: false
+  gateway:
+    name: staybook-gateway
+    namespace: edge

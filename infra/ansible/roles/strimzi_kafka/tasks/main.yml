@@ -1,4 +1,4 @@
-- name: Install Strimzi operator
+- name: Install Strimzi cluster operator
   kubernetes.core.helm:
     name: strimzi
     chart_ref: oci://quay.io/strimzi-helm/strimzi-kafka-operator
@@ -6,18 +6,32 @@
     release_namespace: "{{ strimzi_namespace }}"
     create_namespace: true
     wait: true
+    values:
+      watchNamespaces: "{{ [kafka_namespace] if kafka_namespace != strimzi_namespace else [] }}"
+      resources:
+        requests: {cpu: 100m, memory: 256Mi}
+        limits: {memory: 384Mi}
 
-- name: Apply KafkaNodePool and Kafka (KRaft)
+- name: Apply KafkaNodePool
   kubernetes.core.k8s:
     state: present
-    namespace: "{{ strimzi_namespace }}"
+    namespace: "{{ kafka_namespace }}"
+    template: nodepool.yaml.j2
+
+- name: Apply Kafka cluster
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ kafka_namespace }}"
     template: kafka.yaml.j2
     wait: true
     wait_condition: {type: Ready, status: "True"}
-    wait_timeout: 900
+    wait_timeout: 1200
 
 - name: Apply topics
   kubernetes.core.k8s:
     state: present
-    namespace: "{{ strimzi_namespace }}"
+    namespace: "{{ kafka_namespace }}"
     template: topics.yaml.j2
+    wait: true
+    wait_condition: {type: Ready, status: "True"}
+    wait_timeout: 300

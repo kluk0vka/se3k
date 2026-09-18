@@ -77,10 +77,16 @@ resource "kubernetes_secret_v1" "mongo" {
 }
 
 resource "kubernetes_secret_v1" "valkey" {
-  for_each = toset(concat(local.valkey_services, ["valkey"]))
+  for_each = merge(
+    { for s in local.valkey_services : s => { name = "${s}-valkey", namespace = local.app_namespace } },
+    {
+      valkey    = { name = "valkey-auth", namespace = "data" }
+      ratelimit = { name = "ratelimit-valkey", namespace = "edge" }
+    }
+  )
   metadata {
-    name      = each.value == "valkey" ? "valkey-auth" : "${each.value}-valkey"
-    namespace = kubernetes_namespace_v1.ns[each.value == "valkey" ? "data" : local.app_namespace].metadata[0].name
+    name      = each.value.name
+    namespace = kubernetes_namespace_v1.ns[each.value.namespace].metadata[0].name
     labels    = local.common_labels
   }
   data = {

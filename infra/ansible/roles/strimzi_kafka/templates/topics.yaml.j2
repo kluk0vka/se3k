@@ -1,6 +1,6 @@
 {% for t in kafka_topics %}
 ---
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
 metadata:
   name: {{ t.name | replace('.', '-') }}
@@ -9,7 +9,8 @@ metadata:
 spec:
   topicName: {{ t.name }}
   partitions: {{ t.partitions }}
-  replicas: 3
+  replicas: {{ t.replicas | default(3) }}
   config:
-    retention.ms: 604800000
+    retention.ms: {{ t.retention_ms | default(kafka_topic_retention_ms) }}
+    min.insync.replicas: 2
 {% endfor %}

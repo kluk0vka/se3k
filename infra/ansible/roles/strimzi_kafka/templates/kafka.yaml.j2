@@ -1,18 +1,4 @@
-apiVersion: kafka.strimzi.io/v1beta2
-kind: KafkaNodePool
-metadata:
-  name: dual-role
-  labels:
-    strimzi.io/cluster: {{ kafka_cluster_name }}
-spec:
-  replicas: {{ kafka_replicas }}
-  roles: [controller, broker]
-  storage:
-    type: jbod
-    volumes:
-      - {id: 0, type: persistent-claim, size: {{ kafka_storage_size }}, deleteClaim: false, kraftMetadata: shared}
----
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: Kafka
 metadata:
   name: {{ kafka_cluster_name }}
@@ -21,19 +7,35 @@ spec:
     version: {{ kafka_version }}
     listeners:
       - {name: plain, port: 9092, type: internal, tls: false}
+      - {name: tls, port: 9093, type: internal, tls: true}
     config:
       default.replication.factor: 3
       min.insync.replicas: 2
       offsets.topic.replication.factor: 3
       transaction.state.log.replication.factor: 3
       transaction.state.log.min.isr: 2
+      auto.create.topics.enable: false
     metricsConfig:
-      type: jmxPrometheusExporter
-      valueFrom:
-        configMapKeyRef: {name: kafka-metrics, key: kafka-metrics-config.yml}
+      type: strimziMetricsReporter
+      values:
+        allowList:
+          - "kafka_server.*"
+          - "kafka_network.*"
+          - "kafka_controller.*"
+          - "kafka_log.*"
+          - "kafka_cluster_partition.*"
   entityOperator:
-    topicOperator: {}
-    userOperator: {}
+    topicOperator:
+      resources:
+        requests: {cpu: 50m, memory: 192Mi}
+        limits: {memory: 256Mi}
+    userOperator:
+      resources:
+        requests: {cpu: 50m, memory: 192Mi}
+        limits: {memory: 256Mi}
   kafkaExporter:
     topicRegex: ".*"
     groupRegex: ".*"
+    resources:
+      requests: {cpu: 20m, memory: 64Mi}
+      limits: {memory: 128Mi}

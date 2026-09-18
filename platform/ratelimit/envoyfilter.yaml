@@ -1,0 +1,57 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: gateway-ratelimit
+  namespace: edge
+spec:
+  workloadSelector:
+    labels:
+      gateway.networking.k8s.io/gateway-name: staybook-gateway
+  configPatches:
+    - applyTo: HTTP_FILTER
+      match:
+        context: GATEWAY
+        listener:
+          filterChain:
+            filter:
+              name: envoy.filters.network.http_connection_manager
+              subFilter:
+                name: envoy.filters.http.router
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.ratelimit
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.ratelimit.v3.RateLimit
+            domain: staybook-gateway
+            failure_mode_deny: false
+            timeout: 0.1s
+            enable_x_ratelimit_headers: DRAFT_VERSION_03
+            rate_limit_service:
+              transport_api_version: V3
+              grpc_service:
+                envoy_grpc:
+                  cluster_name: outbound|8081||ratelimit.edge.svc.cluster.local
+                  authority: ratelimit.edge.svc.cluster.local
+    - applyTo: VIRTUAL_HOST
+      match:
+        context: GATEWAY
+        routeConfiguration:
+          vhost:
+            name: "*:80"
+      patch:
+        operation: MERGE
+        value:
+          rate_limits:
+            - actions:
+                - request_headers:
+                    header_name: x-user-id
+                    descriptor_key: user_id
+            - actions:
+                - header_value_match:
+                    descriptor_key: route
+                    descriptor_value: bookings
+                    headers:
+                      - name: ":path"
+                        string_match:
+                          prefix: /bookings
