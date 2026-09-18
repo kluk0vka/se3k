@@ -16,7 +16,8 @@ cilium status --wait || true
 cilium hubble enable --ui || true
 kubectl taint node "$PROFILE" node-role.kubernetes.io/control-plane=:NoSchedule --overwrite
 kubectl -n kube-system delete ds registry-proxy --ignore-not-found
-kubectl apply -f "$(dirname "$0")/../../platform/registry/node-proxy.yaml"
+kubectl apply -f "$(dirname "$0")/../../platform/registry/node-proxy.yaml" -f "$(dirname "$0")/../../platform/registry/storage.yaml"
+kubectl -n kube-system patch deploy registry --patch-file "$(dirname "$0")/../../platform/registry/registry-patch.yaml"
 docker rm -f registry-fwd >/dev/null 2>&1 || true
 docker run -d --name registry-fwd --restart unless-stopped --network=host \
   alpine/socat TCP-LISTEN:5000,reuseaddr,fork "TCP:$(minikube -p "$PROFILE" ip):5000"

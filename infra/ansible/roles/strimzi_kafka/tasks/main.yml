@@ -16,12 +16,18 @@
   kubernetes.core.k8s:
     state: present
     namespace: "{{ kafka_namespace }}"
+    server_side_apply:
+      field_manager: ansible-strimzi
+      force_conflicts: true
     template: nodepool.yaml.j2
 
 - name: Apply Kafka cluster
   kubernetes.core.k8s:
     state: present
     namespace: "{{ kafka_namespace }}"
+    server_side_apply:
+      field_manager: ansible-strimzi
+      force_conflicts: true
     template: kafka.yaml.j2
     wait: true
     wait_condition: {type: Ready, status: "True"}
@@ -31,6 +37,9 @@
   kubernetes.core.k8s:
     state: present
     namespace: "{{ kafka_namespace }}"
+    server_side_apply:
+      field_manager: ansible-strimzi
+      force_conflicts: true
     template: topics.yaml.j2
     wait: true
     wait_condition: {type: Ready, status: "True"}

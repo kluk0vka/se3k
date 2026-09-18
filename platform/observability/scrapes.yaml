@@ -120,3 +120,25 @@ spec:
   targetEndpoints:
     - targets: ["192.168.58.11:8404", "192.168.58.12:8404"]
       path: /metrics
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: istio-gateway
+  namespace: observability
+spec:
+  namespaceSelector:
+    matchNames: [edge]
+  selector:
+    matchExpressions:
+      - {key: gateway.networking.k8s.io/gateway-name, operator: Exists}
+  podMetricsEndpoints:
+    - port: http-envoy-prom
+      path: /stats/prometheus
+      relabelConfigs:
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - sourceLabels: [__meta_kubernetes_pod_label_gateway_networking_k8s_io_gateway_name]
+          targetLabel: app

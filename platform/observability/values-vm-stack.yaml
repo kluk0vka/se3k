@@ -1,49 +1,46 @@
 fullnameOverride: vm
 global:
   clusterLabel: cluster
-
 victoria-metrics-operator:
   resources:
     requests: {cpu: 50m, memory: 96Mi}
     limits: {memory: 256Mi}
   admissionWebhooks:
     enabled: false
-
 defaultDashboards:
   enabled: true
-
 defaultRules:
   enabled: true
-
 vmsingle:
   enabled: true
   spec:
     retentionPeriod: "7d"
     extraArgs:
-      search.maxUniqueTimeseries: "300000"
       opentelemetry.usePrometheusNaming: "true"
+      memory.allowedPercent: "50"
     resources:
       requests: {cpu: 100m, memory: 256Mi}
-      limits: {memory: 768Mi}
+      limits: {memory: 1Gi, cpu: "1"}
     storage:
       accessModes: [ReadWriteOnce]
       resources:
         requests:
           storage: 5Gi
-
 vlsingle:
   enabled: true
   spec:
     retentionPeriod: "3d"
     resources:
       requests: {cpu: 50m, memory: 128Mi}
-      limits: {memory: 384Mi}
+      limits: {memory: 640Mi, cpu: "1"}
     storage:
       accessModes: [ReadWriteOnce]
       resources:
         requests:
           storage: 3Gi
-
+    extraArgs:
+      memory.allowedPercent: "40"
+      maxConcurrentInserts: "4"
 vtsingle:
   enabled: true
   spec:
@@ -56,7 +53,6 @@ vtsingle:
       resources:
         requests:
           storage: 3Gi
-
 vlagent:
   enabled: true
   spec:
@@ -65,7 +61,6 @@ vlagent:
     resources:
       requests: {cpu: 20m, memory: 48Mi}
       limits: {memory: 192Mi}
-
 vmagent:
   enabled: true
   spec:
@@ -74,16 +69,14 @@ vmagent:
     resources:
       requests: {cpu: 50m, memory: 128Mi}
       limits: {memory: 384Mi}
-
 vmalert:
   enabled: true
   spec:
-    evaluationInterval: 30s
+    evaluationInterval: 1m
     selectAllByDefault: true
     resources:
       requests: {cpu: 20m, memory: 48Mi}
       limits: {memory: 192Mi}
-
 alertmanager:
   enabled: true
   spec:
@@ -107,7 +100,6 @@ alertmanager:
         webhook_configs:
           - url: http://alert-webhook-logger.observability.svc:8080/
             send_resolved: true
-
 grafana:
   enabled: true
   adminUser: admin
@@ -131,17 +123,14 @@ grafana:
     analytics:
       check_for_updates: false
       reporting_enabled: false
-
 prometheus-node-exporter:
   resources:
     requests: {cpu: 10m, memory: 24Mi}
     limits: {memory: 64Mi}
-
 kube-state-metrics:
   resources:
     requests: {cpu: 10m, memory: 48Mi}
     limits: {memory: 128Mi}
-
 kubeEtcd:
   enabled: false
 kubeScheduler:

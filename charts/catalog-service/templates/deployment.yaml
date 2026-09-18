@@ -12,6 +12,9 @@ spec:
   template:
     metadata:
       labels: {{- include "svc.labels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations: {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       serviceAccountName: {{ .Chart.Name }}
       containers:
@@ -26,6 +29,20 @@ spec:
               value: {{ .Values.kafka.bootstrapServers | quote }}
             - name: OTEL_SERVICE_NAME
               value: {{ .Chart.Name }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.otel.endpoint | quote }}
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: grpc
+            - name: OTEL_TRACES_EXPORTER
+              value: otlp
+            - name: OTEL_METRICS_EXPORTER
+              value: none
+            - name: OTEL_LOGS_EXPORTER
+              value: none
+            - name: OTEL_PROPAGATORS
+              value: tracecontext,baggage
+            - name: OTEL_PYTHON_EXCLUDED_URLS
+              value: healthz,readyz,metrics
             {{- range $k, $v := .Values.env }}
             - name: {{ $k }}
               value: {{ $v | quote }}

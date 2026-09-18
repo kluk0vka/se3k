@@ -11,6 +11,19 @@ spec:
     enableTracing: true
     defaultConfig:
       holdApplicationUntilProxyStarts: true
+      proxyStatsMatcher:
+        inclusionRegexps:
+          - ".*outlier_detection.*"
+          - ".*circuit_breakers.*"
+          - ".*upstream_rq_retry.*"
+          - ".*upstream_rq_pending_overflow.*"
+          - ".*upstream_cx_overflow.*"
+          - ".*ratelimit.*"
+    extensionProviders:
+      - name: otel-tracing
+        opentelemetry:
+          service: otel-collector.observability.svc.cluster.local
+          port: 4317
     outboundTrafficPolicy:
       mode: ALLOW_ANY
   components:
