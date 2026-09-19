@@ -41,6 +41,10 @@ spec:
               value: none
             - name: OTEL_PROPAGATORS
               value: tracecontext,baggage
+            - name: OTEL_TRACES_SAMPLER
+              value: {{ .Values.otel.sampler | quote }}
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: {{ .Values.otel.rootSampleRatio | quote }}
             - name: OTEL_PYTHON_EXCLUDED_URLS
               value: healthz,readyz,metrics
             {{- range $k, $v := .Values.env }}

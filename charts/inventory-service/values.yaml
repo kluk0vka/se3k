@@ -58,3 +58,5 @@ podAnnotations:
   prometheus.io/path: /metrics
 otel:
   endpoint: http://otel-collector.observability.svc.cluster.local:4317
+  sampler: parentbased_traceidratio
+  rootSampleRatio: "0"
