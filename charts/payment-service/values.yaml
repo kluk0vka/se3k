@@ -1,7 +1,7 @@
 replicaCount: 2
 image:
   repository: localhost:5000/staybook/payment-service
-  tag: "0.2.1"
+  tag: "fc2f0eeccd"
   pullPolicy: IfNotPresent
 service:
   port: 8000
