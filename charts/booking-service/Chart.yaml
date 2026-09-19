@@ -3,4 +3,4 @@ name: booking-service
 description: Bookings and saga orchestration
 type: application
 version: 0.1.0
-appVersion: "fc2f0eeccd"
+appVersion: "12e8e89ae4"

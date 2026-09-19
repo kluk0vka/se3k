@@ -3,4 +3,4 @@ name: inventory-service
 description: Room availability and holds
 type: application
 version: 0.1.0
-appVersion: "fc2f0eeccd"
+appVersion: "12e8e89ae4"

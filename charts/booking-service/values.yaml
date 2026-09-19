@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
   repository: localhost:5000/staybook/booking-service
-  tag: "fc2f0eeccd"
+  tag: "12e8e89ae4"
   pullPolicy: IfNotPresent
 service:
   port: 8000
