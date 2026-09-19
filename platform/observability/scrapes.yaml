@@ -13,6 +13,9 @@ spec:
     - port: http-envoy-prom
       path: /stats/prometheus
       relabelConfigs:
+        - sourceLabels: [__meta_kubernetes_pod_ip]
+          targetLabel: __address__
+          replacement: "$1:15020"
         - sourceLabels: [__meta_kubernetes_namespace]
           targetLabel: namespace
         - sourceLabels: [__meta_kubernetes_pod_name]
@@ -137,7 +140,7 @@ spec:
     matchExpressions:
       - {key: gateway.networking.k8s.io/gateway-name, operator: Exists}
   podMetricsEndpoints:
-    - port: http-envoy-prom
+    - portNumber: 15020
       path: /stats/prometheus
       relabelConfigs:
         - sourceLabels: [__meta_kubernetes_namespace]
@@ -150,3 +153,17 @@ spec:
         - sourceLabels: [__name__]
           regex: "istio_(requests_total|request_duration_milliseconds_bucket|request_duration_milliseconds_count|request_duration_milliseconds_sum|tcp_connections_opened_total)|envoy_cluster_(outlier_detection_ejections_active|outlier_detection_ejections_enforced_total|upstream_rq_pending_overflow|upstream_rq_retry|upstream_rq_retry_success|upstream_cx_overflow|circuit_breakers_default_rq_open|circuit_breakers_default_cx_open)|envoy_http_ratelimit_.*|envoy_cluster_ratelimit_.*|http_request_duration_seconds_(bucket|count|sum)|http_requests_total|staybook_.*|process_(cpu_seconds_total|resident_memory_bytes)"
           action: keep
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: postgres
+  namespace: observability
+spec:
+  namespaceSelector:
+    matchNames: [data]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  endpoints:
+    - port: http-metrics
