@@ -8,7 +8,7 @@ victoria-metrics-operator:
   admissionWebhooks:
     enabled: false
 defaultDashboards:
-  enabled: true
+  enabled: false
 defaultRules:
   enabled: false
 vmsingle:

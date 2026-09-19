@@ -14,7 +14,8 @@ from valkey.asyncio import Valkey
 from app import seed
 from app.config import settings
 from staybook_common.app import instrument
-from staybook_common.kafka import EventProducer
+from staybook_common.events import Event
+from staybook_common.kafka import EventConsumer, EventProducer
 from staybook_common.logging import setup_logging
 
 setup_logging(settings.service_name)
@@ -29,6 +30,34 @@ cache = Valkey(host=settings.valkey_host, port=settings.valkey_port, password=se
                socket_timeout=0.5, decode_responses=True)
 http = httpx.AsyncClient(base_url=settings.inventory_url, timeout=settings.inventory_timeout_s)
 producer = EventProducer(settings.kafka_bootstrap_servers, settings.service_name)
+INVALIDATIONS = Counter("staybook_catalog_cache_invalidations_total", "Search cache invalidations", ["reason"])
+
+
+def search_key(city: str, check_in: date, check_out: date, guests: int) -> str:
+    digest = hashlib.sha1(f"{check_in}|{check_out}|{guests}".encode()).hexdigest()
+    return f"search:{city.lower()}:{digest}"
+
+
+async def invalidate_city(city: str, reason: str) -> None:
+    async for key in cache.scan_iter(match=f"search:{city.lower()}:*", count=500):
+        await cache.delete(key)
+    INVALIDATIONS.labels(reason).inc()
+
+
+async def on_availability_changed(event: Event) -> None:
+    room_id = event.data.get("room_id")
+    if room_id is None:
+        return
+    doc = await db.hotels.find_one({"room_types.room_ids": int(room_id)}, {"city": 1})
+    if doc:
+        await invalidate_city(doc["city"], event.event_type)
+
+
+consumer = EventConsumer(
+    settings.kafka_bootstrap_servers,
+    "catalog-service",
+    {"booking.confirmed": on_availability_changed, "inventory.released": on_availability_changed},
+)
 
 
 @asynccontextmanager
@@ -39,7 +68,9 @@ async def lifespan(_: FastAPI):
         await db.hotels.insert_many(seed.hotels())
         log.info("catalog seeded")
     await producer.start()
+    await consumer.start()
     yield
+    await consumer.stop()
     await producer.stop()
     await http.aclose()
     await cache.aclose()
@@ -63,7 +94,10 @@ async def readyz(response: Response) -> dict:
     except Exception:
         response.status_code = 503
         return {"status": "storage unavailable"}
-    return {"status": "ready" if producer.started else "kafka unavailable"}
+    if not (producer.started and consumer.running):
+        response.status_code = 503
+        return {"status": "kafka unavailable"}
+    return {"status": "ready"}
 
 
 async def fetch_availability(room_ids: list[int], check_in: date, check_out: date) -> set[int] | None:
@@ -93,7 +127,7 @@ async def search(
 ) -> dict:
     if check_out <= check_in:
         raise HTTPException(422, "check_out must be after check_in")
-    key = "search:" + hashlib.sha1(f"{city.lower()}|{check_in}|{check_out}|{guests}".encode()).hexdigest()
+    key = search_key(city, check_in, check_out, guests)
     try:
         cached = await cache.get(key)
     except Exception:
@@ -152,8 +186,7 @@ async def update_price(room_id: int, body: PriceUpdate) -> dict:
     )
     if doc is None:
         raise HTTPException(404, "room not found")
-    async for key in cache.scan_iter(match="search:*", count=500):
-        await cache.delete(key)
+    await invalidate_city(doc["city"], "price_update")
     await producer.publish(
         "catalog.room-updated", "catalog.room-updated", str(room_id),
         {"room_id": room_id, "hotel_id": doc["_id"], "price_per_night_minor": body.price_per_night_minor},

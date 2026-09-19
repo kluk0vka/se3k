@@ -6,11 +6,11 @@ metadata:
 spec:
   profile: minimal
   meshConfig:
-    accessLogFile: /dev/stdout
     accessLogEncoding: JSON
     enableTracing: true
     defaultConfig:
       holdApplicationUntilProxyStarts: true
+      concurrency: 1
       proxyStatsMatcher:
         inclusionRegexps:
           - ".*outlier_detection.*"

@@ -8,3 +8,16 @@ spec:
     - providers:
         - name: otel-tracing
       randomSamplingPercentage: 20
+---
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
+metadata:
+  name: gateway-access-log
+  namespace: edge
+spec:
+  selector:
+    matchLabels:
+      gateway.networking.k8s.io/gateway-name: staybook-gateway
+  accessLogging:
+    - providers:
+        - name: envoy

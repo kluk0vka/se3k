@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 PROFILE=${1:-staybook}
-NODES=${NODES:-3}
-NODE_CPUS=${NODE_CPUS:-2}
-NODE_MEMORY=${NODE_MEMORY:-3800}
+NODES=${NODES:-1}
+NODE_CPUS=${NODE_CPUS:-6}
+NODE_MEMORY=${NODE_MEMORY:-7680}
 
 minikube start -p "$PROFILE" \
   --nodes "$NODES" \
@@ -14,7 +14,9 @@ minikube start -p "$PROFILE" \
 
 cilium status --wait || true
 cilium hubble enable --ui || true
-kubectl taint node "$PROFILE" node-role.kubernetes.io/control-plane=:NoSchedule --overwrite
+if [ "$NODES" -gt 1 ]; then
+  kubectl taint node "$PROFILE" node-role.kubernetes.io/control-plane=:NoSchedule --overwrite
+fi
 kubectl -n kube-system delete ds registry-proxy --ignore-not-found
 kubectl apply -f "$(dirname "$0")/../../platform/registry/node-proxy.yaml" -f "$(dirname "$0")/../../platform/registry/storage.yaml"
 kubectl -n kube-system patch deploy registry --patch-file "$(dirname "$0")/../../platform/registry/registry-patch.yaml"
