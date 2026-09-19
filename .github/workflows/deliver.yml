@@ -31,7 +31,7 @@ jobs:
       services: ${{ steps.plan.outputs.services }}
       tag: ${{ steps.plan.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - id: plan
@@ -63,7 +63,7 @@ jobs:
       matrix:
         service: ${{ fromJSON(needs.plan.outputs.services) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Static check
         run: python3 -m compileall -q services/common services/${{ matrix.service }}/app
       - name: Build and push with Kaniko
@@ -89,7 +89,7 @@ jobs:
     outputs:
       revision: ${{ steps.commit.outputs.revision }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: main
       - id: commit
