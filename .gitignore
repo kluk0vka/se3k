@@ -13,3 +13,4 @@ __pycache__/
 !example.tfvars
 charts/*/charts/
 *.tgz
+tests/chaos/results/
