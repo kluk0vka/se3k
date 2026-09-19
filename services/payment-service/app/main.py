@@ -1,5 +1,4 @@
 import logging
-import socket
 import uuid
 from contextlib import asynccontextmanager
 
@@ -8,7 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
-from app import fault, psp
+from app import psp
 from app.config import settings
 from app.db import Session, init_db
 from staybook_common.app import instrument
@@ -64,7 +63,6 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title=settings.service_name, lifespan=lifespan)
-app.middleware("http")(fault.fault_middleware)
 instrument(app)
 
 
@@ -144,16 +142,3 @@ async def pay(
         response.status_code = 402
     return PaymentView(payment_id=str(payment_id), booking_id=str(req.booking_id), status=status,
                        psp_reference=reference, failure_reason=reason)
-
-
-@app.get("/admin/fault", response_model=fault.FaultConfig)
-async def get_fault() -> fault.FaultConfig:
-    return fault.state
-
-
-@app.put("/admin/fault", response_model=fault.FaultConfig)
-async def set_fault(cfg: fault.FaultConfig) -> fault.FaultConfig:
-    fault.state.error_rate = cfg.error_rate
-    fault.state.delay_ms = cfg.delay_ms
-    log.warning(f"fault injection on {socket.gethostname()}: {cfg.model_dump()}")
-    return fault.state

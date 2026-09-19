@@ -1,0 +1,269 @@
+apiVersion: cilium.io/v2
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: workload-dns
+spec:
+  endpointSelector:
+    matchExpressions:
+      - key: k8s:io.kubernetes.pod.namespace
+        operator: In
+        values: [staybook, edge, data, kafka]
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            k8s-app: kube-dns
+      toPorts:
+        - ports:
+            - {port: "53", protocol: ANY}
+          rules:
+            dns:
+              - matchPattern: "*"
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: staybook-services
+  namespace: staybook
+spec:
+  endpointSelector: {}
+  ingress:
+    - fromEntities: [host, remote-node, health]
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: staybook
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: edge
+            gateway.networking.k8s.io/gateway-name: staybook-gateway
+      toPorts:
+        - ports:
+            - {port: "8000", protocol: TCP}
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: observability
+            app.kubernetes.io/name: vmagent
+      toPorts:
+        - ports:
+            - {port: "15020", protocol: TCP}
+            - {port: "15090", protocol: TCP}
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: staybook
+      toPorts:
+        - ports:
+            - {port: "8000", protocol: TCP}
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: data
+            app.kubernetes.io/name: postgres
+      toPorts:
+        - ports:
+            - {port: "5432", protocol: TCP}
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: data
+            app.kubernetes.io/name: mongo
+      toPorts:
+        - ports:
+            - {port: "27017", protocol: TCP}
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: data
+            app.kubernetes.io/name: valkey
+      toPorts:
+        - ports:
+            - {port: "6379", protocol: TCP}
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kafka
+            strimzi.io/name: kafka-kafka
+      toPorts:
+        - ports:
+            - {port: "9092", protocol: TCP}
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: istio-system
+            app: istiod
+      toPorts:
+        - ports:
+            - {port: "15012", protocol: TCP}
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: observability
+            app.kubernetes.io/name: opentelemetry-collector
+      toPorts:
+        - ports:
+            - {port: "4317", protocol: TCP}
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: edge-gateway
+  namespace: edge
+spec:
+  endpointSelector:
+    matchLabels:
+      gateway.networking.k8s.io/gateway-name: staybook-gateway
+  ingress:
+    - fromEntities: [host, remote-node, world, health]
+      toPorts:
+        - ports:
+            - {port: "80", protocol: TCP}
+            - {port: "15021", protocol: TCP}
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: observability
+            app.kubernetes.io/name: vmagent
+      toPorts:
+        - ports:
+            - {port: "15020", protocol: TCP}
+            - {port: "15090", protocol: TCP}
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: staybook
+      toPorts:
+        - ports:
+            - {port: "8000", protocol: TCP}
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: ratelimit
+      toPorts:
+        - ports:
+            - {port: "8081", protocol: TCP}
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: istio-system
+            app: istiod
+      toPorts:
+        - ports:
+            - {port: "15012", protocol: TCP}
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: observability
+            app.kubernetes.io/name: opentelemetry-collector
+      toPorts:
+        - ports:
+            - {port: "4317", protocol: TCP}
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: edge-ratelimit
+  namespace: edge
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: ratelimit
+  ingress:
+    - fromEntities: [host, remote-node, health]
+    - fromEndpoints:
+        - matchLabels:
+            gateway.networking.k8s.io/gateway-name: staybook-gateway
+      toPorts:
+        - ports:
+            - {port: "8081", protocol: TCP}
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: observability
+            app.kubernetes.io/name: vmagent
+      toPorts:
+        - ports:
+            - {port: "9090", protocol: TCP}
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: data
+            app.kubernetes.io/name: valkey
+      toPorts:
+        - ports:
+            - {port: "6379", protocol: TCP}
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: data-stores
+  namespace: data
+spec:
+  endpointSelector: {}
+  ingress:
+    - fromEntities: [host, remote-node, health]
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: staybook
+      toPorts:
+        - ports:
+            - {port: "5432", protocol: TCP}
+            - {port: "27017", protocol: TCP}
+            - {port: "6379", protocol: TCP}
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: edge
+            app.kubernetes.io/name: ratelimit
+      toPorts:
+        - ports:
+            - {port: "6379", protocol: TCP}
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kafka
+            strimzi.io/kind: KafkaConnect
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: data
+      toPorts:
+        - ports:
+            - {port: "9000", protocol: TCP}
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: observability
+            app.kubernetes.io/name: vmagent
+      toPorts:
+        - ports:
+            - {port: "9121", protocol: TCP}
+            - {port: "9187", protocol: TCP}
+            - {port: "9000", protocol: TCP}
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: data
+      toPorts:
+        - ports:
+            - {port: "9000", protocol: TCP}
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: kafka-cluster
+  namespace: kafka
+spec:
+  endpointSelector: {}
+  ingress:
+    - fromEntities: [host, remote-node, health]
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kafka
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: staybook
+      toPorts:
+        - ports:
+            - {port: "9092", protocol: TCP}
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: observability
+            app.kubernetes.io/name: vmagent
+      toPorts:
+        - ports:
+            - {port: "9404", protocol: TCP}
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kafka
+    - toEntities: [kube-apiserver]
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: data
+            app.kubernetes.io/name: minio
+      toPorts:
+        - ports:
+            - {port: "9000", protocol: TCP}

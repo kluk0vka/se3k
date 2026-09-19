@@ -3,10 +3,14 @@ import socket
 from fastapi import FastAPI, Request
 from prometheus_fastapi_instrumentator import Instrumentator
 
+from staybook_common import fault
+
 HOSTNAME = socket.gethostname()
 
 
 def instrument(app: FastAPI) -> None:
+    fault.install(app)
+
     @app.middleware("http")
     async def served_by(request: Request, call_next):
         response = await call_next(request)

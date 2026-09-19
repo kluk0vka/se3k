@@ -32,6 +32,7 @@ kafka:
 platform:
 	./platform/istio/install.sh
 	kubectl apply -f platform/gateway/gateway.yaml -f platform/ratelimit/ratelimit.yaml -f platform/ratelimit/envoyfilter.yaml
+	kubectl apply -f platform/network-policies/policies.yaml
 
 autoscaler:
 	./platform/autoscaler/install.sh
