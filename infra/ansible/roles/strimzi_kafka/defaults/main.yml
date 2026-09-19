@@ -27,12 +27,13 @@ kafka_topics:
 kafka_connect_enabled: true
 kafka_connect_name: archive-connect
 kafka_connect_image: localhost:5000/staybook/kafka-connect:4.3.1-aiven-s3-3.4.3
-kafka_connect_heap: 320m
+kafka_connect_heap: 512m
 kafka_connect_resources:
-  requests: {cpu: 100m, memory: 512Mi}
-  limits: {memory: 768Mi}
+  requests: {cpu: 100m, memory: 768Mi}
+  limits: {memory: 1Gi}
 kafka_connect_credentials_secret: minio-archive-writer
 archive_topics_regex: "^(booking|inventory|payment|catalog)\\..+"
 archive_bucket: events-archive
 archive_endpoint: http://minio.data.svc.cluster.local:9000
 archive_flush_interval_ms: 30000
+archive_file_max_records: 10000
