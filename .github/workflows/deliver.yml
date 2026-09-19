@@ -1,0 +1,148 @@
+name: deliver
+
+on:
+  push:
+    branches: [main]
+    paths: ["services/**"]
+  workflow_dispatch:
+    inputs:
+      services:
+        description: "Services to deliver, space separated (empty = all)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deliver-main
+  cancel-in-progress: false
+
+env:
+  REGISTRY: localhost:5000/staybook
+  KANIKO_IMAGE: gcr.io/kaniko-project/executor:v1.24.0
+  ALL_SERVICES: catalog-service booking-service inventory-service payment-service notification-service
+
+jobs:
+  plan:
+    if: github.repository == 'kluk0vka/se3k'
+    runs-on: [self-hosted, staybook]
+    outputs:
+      services: ${{ steps.plan.outputs.services }}
+      tag: ${{ steps.plan.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: plan
+        env:
+          BEFORE: ${{ github.event.before }}
+          REQUESTED: ${{ inputs.services }}
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            list="${REQUESTED:-$ALL_SERVICES}"
+          else
+            changed=$(git diff --name-only "$BEFORE" "$GITHUB_SHA" -- services)
+            if echo "$changed" | grep -qE '^services/(common/|Dockerfile$)'; then
+              list="$ALL_SERVICES"
+            else
+              list=$(echo "$changed" | awk -F/ '$2 ~ /-service$/ {print $2}' | sort -u | tr '\n' ' ')
+            fi
+          fi
+          tag=$(git rev-parse --short=10 "$GITHUB_SHA")
+          echo "services=$(python3 -c 'import json,sys; print(json.dumps(sys.argv[1].split()))' "$list")" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "### Plan: \`$list\` -> tag \`$tag\`" >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.services != '[]'
+    runs-on: [self-hosted, staybook]
+    strategy:
+      max-parallel: 1
+      matrix:
+        service: ${{ fromJSON(needs.plan.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Static check
+        run: python3 -m compileall -q services/common services/${{ matrix.service }}/app
+      - name: Build and push with Kaniko
+        run: |
+          docker run --rm --network host \
+            -v "$GITHUB_WORKSPACE/services:/workspace:ro" \
+            "$KANIKO_IMAGE" \
+            --context=dir:///workspace \
+            --dockerfile=/workspace/Dockerfile \
+            --build-arg=SERVICE=${{ matrix.service }} \
+            --destination="$REGISTRY/${{ matrix.service }}:${{ needs.plan.outputs.tag }}" \
+            --cache=true --cache-repo="$REGISTRY/kaniko-cache" \
+            --insecure --skip-tls-verify --snapshot-mode=redo --verbosity=warn
+      - name: Verify image in registry
+        run: |
+          docker run --rm --network host curlimages/curl -fsS -o /dev/null \
+            -H "Accept: application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json" \
+            "http://localhost:5000/v2/staybook/${{ matrix.service }}/manifests/${{ needs.plan.outputs.tag }}"
+
+  update-chart:
+    needs: [plan, build]
+    runs-on: [self-hosted, staybook]
+    outputs:
+      revision: ${{ steps.commit.outputs.revision }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - id: commit
+        env:
+          SERVICES: ${{ join(fromJSON(needs.plan.outputs.services), ' ') }}
+          TAG: ${{ needs.plan.outputs.tag }}
+        run: |
+          for s in $SERVICES; do
+            yq -i ".image.tag = \"$TAG\"" "charts/$s/values.yaml"
+            yq -i ".appVersion = \"$TAG\"" "charts/$s/Chart.yaml"
+          done
+          git config user.name "staybook-ci"
+          git config user.email "staybook-ci@users.noreply.github.com"
+          git add charts
+          git commit -m "ci: deploy $SERVICES at $TAG [skip ci]"
+          for _ in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && break
+            sleep 5
+          done
+          echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  argocd-sync:
+    needs: [plan, update-chart]
+    runs-on: [self-hosted, staybook]
+    timeout-minutes: 15
+    env:
+      SERVICES: ${{ join(fromJSON(needs.plan.outputs.services), ' ') }}
+      TAG: ${{ needs.plan.outputs.tag }}
+      REVISION: ${{ needs.update-chart.outputs.revision }}
+    steps:
+      - name: Refresh ArgoCD applications
+        run: |
+          for s in $SERVICES; do
+            kubectl -n argocd annotate application "$s" argocd.argoproj.io/refresh=hard --overwrite
+          done
+      - name: Wait for Synced/Healthy at the new revision
+        run: |
+          for s in $SERVICES; do
+            for i in $(seq 1 90); do
+              state=$(kubectl -n argocd get application "$s" \
+                -o jsonpath='{.status.sync.revision} {.status.sync.status} {.status.health.status}')
+              echo "$s: $state"
+              [ "$state" = "$REVISION Synced Healthy" ] && break
+              [ "$i" = 90 ] && { echo "::error::$s did not reach $REVISION"; exit 1; }
+              sleep 5
+            done
+          done
+      - name: Verify rollout
+        run: |
+          for s in $SERVICES; do
+            kubectl -n staybook rollout status "deploy/$s" --timeout=5m
+            image=$(kubectl -n staybook get deploy "$s" -o jsonpath='{.spec.template.spec.containers[?(@.name=="app")].image}')
+            echo "$s -> $image"
+            [ "$image" = "$REGISTRY/$s:$TAG" ]
+            echo "| $s | \`$image\` |" >> "$GITHUB_STEP_SUMMARY"
+          done
