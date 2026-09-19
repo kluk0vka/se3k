@@ -1,0 +1,52 @@
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaConnect
+metadata:
+  name: {{ kafka_connect_name }}
+  annotations:
+    strimzi.io/use-connector-resources: "true"
+spec:
+  version: {{ kafka_version }}
+  replicas: 1
+  image: {{ kafka_connect_image }}
+  bootstrapServers: {{ kafka_cluster_name }}-kafka-bootstrap:9092
+  groupId: {{ kafka_connect_name }}
+  configStorageTopic: {{ kafka_connect_name }}-configs
+  offsetStorageTopic: {{ kafka_connect_name }}-offsets
+  statusStorageTopic: {{ kafka_connect_name }}-status
+  config:
+    config.storage.replication.factor: {{ kafka_replication_factor }}
+    offset.storage.replication.factor: {{ kafka_replication_factor }}
+    status.storage.replication.factor: {{ kafka_replication_factor }}
+    config.providers: env
+    config.providers.env.class: org.apache.kafka.common.config.provider.EnvVarConfigProvider
+    key.converter: org.apache.kafka.connect.storage.StringConverter
+    value.converter: org.apache.kafka.connect.json.JsonConverter
+    value.converter.schemas.enable: false
+  resources: {{ kafka_connect_resources | to_json }}
+  livenessProbe:
+    initialDelaySeconds: 180
+    timeoutSeconds: 10
+    periodSeconds: 20
+    failureThreshold: 6
+  readinessProbe:
+    initialDelaySeconds: 60
+    timeoutSeconds: 10
+    periodSeconds: 15
+  jvmOptions:
+    "-Xms": {{ kafka_connect_heap }}
+    "-Xmx": {{ kafka_connect_heap }}
+  metricsConfig:
+    type: strimziMetricsReporter
+    values:
+      allowList:
+        - "kafka_connect.*"
+        - "kafka_consumer_consumer_fetch_manager.*"
+  template:
+    connectContainer:
+      env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef: {name: {{ kafka_connect_credentials_secret }}, key: AWS_ACCESS_KEY_ID}
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef: {name: {{ kafka_connect_credentials_secret }}, key: AWS_SECRET_ACCESS_KEY}

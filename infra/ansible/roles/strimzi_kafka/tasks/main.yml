@@ -44,3 +44,29 @@
     wait: true
     wait_condition: {type: Ready, status: "True"}
     wait_timeout: 300
+
+- name: Apply Kafka Connect cluster for the cold archive
+  when: kafka_connect_enabled | bool
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ kafka_namespace }}"
+    template: connect.yaml.j2
+    server_side_apply:
+      field_manager: ansible-strimzi
+      force_conflicts: true
+    wait: true
+    wait_condition: {type: Ready, status: "True"}
+    wait_timeout: 900
+
+- name: Apply S3 sink connector to MinIO
+  when: kafka_connect_enabled | bool
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ kafka_namespace }}"
+    template: connector.yaml.j2
+    server_side_apply:
+      field_manager: ansible-strimzi
+      force_conflicts: true
+    wait: true
+    wait_condition: {type: Ready, status: "True"}
+    wait_timeout: 300

@@ -1,0 +1,27 @@
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaConnector
+metadata:
+  name: events-archive
+  labels:
+    strimzi.io/cluster: {{ kafka_connect_name }}
+spec:
+  class: io.aiven.kafka.connect.s3.AivenKafkaConnectS3SinkConnector
+  tasksMax: 1
+  autoRestart:
+    enabled: true
+  config:
+    topics.regex: '{{ archive_topics_regex }}'
+    aws.access.key.id: ${env:AWS_ACCESS_KEY_ID}
+    aws.secret.access.key: ${env:AWS_SECRET_ACCESS_KEY}
+    aws.s3.bucket.name: {{ archive_bucket }}
+    aws.s3.endpoint: {{ archive_endpoint }}
+    aws.s3.region: us-east-1
+    format.output.type: jsonl
+    format.output.fields: key,value,offset,timestamp
+    format.output.fields.value.encoding: none
+    file.compression.type: gzip
+    file.name.template: "{{ '{{' }}topic{{ '}}' }}/{{ '{{' }}timestamp:unit=yyyy{{ '}}' }}/{{ '{{' }}timestamp:unit=MM{{ '}}' }}/{{ '{{' }}timestamp:unit=dd{{ '}}' }}/{{ '{{' }}topic{{ '}}' }}-{{ '{{' }}partition:padding=true{{ '}}' }}-{{ '{{' }}start_offset:padding=true{{ '}}' }}.jsonl.gz"
+    timestamp.timezone: UTC
+    timestamp.source: wallclock
+    offset.flush.interval.ms: {{ archive_flush_interval_ms }}
+    errors.tolerance: none

@@ -1,0 +1,150 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: data
+  labels:
+    app.kubernetes.io/name: minio
+spec:
+  selector:
+    app.kubernetes.io/name: minio
+  ports:
+    - {name: http-s3, port: 9000, targetPort: 9000}
+    - {name: http-console, port: 9001, targetPort: 9001}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio
+  namespace: data
+  labels:
+    app.kubernetes.io/name: minio
+spec:
+  serviceName: minio
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: minio
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: minio
+    spec:
+      securityContext:
+        fsGroup: 65532
+      containers:
+        - name: minio
+          image: cgr.dev/chainguard/minio:latest
+          args: ["server", "/data", "--console-address", ":9001"]
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef: {name: minio-root, key: MINIO_ROOT_USER}
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: minio-root, key: MINIO_ROOT_PASSWORD}
+            - {name: MINIO_PROMETHEUS_AUTH_TYPE, value: public}
+            - {name: MINIO_BROWSER, value: "on"}
+          ports:
+            - containerPort: 9000
+            - containerPort: 9001
+          readinessProbe:
+            httpGet: {path: /minio/health/ready, port: 9000}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /minio/health/live, port: 9000}
+            periodSeconds: 20
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {memory: 384Mi}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minio-archive-policy
+  namespace: data
+data:
+  archive-writer.json: |
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": ["s3:GetBucketLocation", "s3:ListBucket", "s3:ListBucketMultipartUploads"],
+          "Resource": ["arn:aws:s3:::events-archive"]
+        },
+        {
+          "Effect": "Allow",
+          "Action": ["s3:PutObject", "s3:GetObject", "s3:AbortMultipartUpload", "s3:ListMultipartUploadParts"],
+          "Resource": ["arn:aws:s3:::events-archive/*"]
+        }
+      ]
+    }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-setup
+  namespace: data
+spec:
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: minio-setup
+    spec:
+      restartPolicy: OnFailure
+      volumes:
+        - name: policy
+          configMap:
+            name: minio-archive-policy
+      initContainers:
+        - &mc
+          name: bucket
+          image: cgr.dev/chainguard/minio-client:latest
+          args: ["mb", "--ignore-existing", "staybook/events-archive"]
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef: {name: minio-root, key: MINIO_ROOT_USER}
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: minio-root, key: MINIO_ROOT_PASSWORD}
+            - name: CONNECT_ACCESS_KEY
+              valueFrom:
+                secretKeyRef: {name: minio-root, key: CONNECT_ACCESS_KEY}
+            - name: CONNECT_SECRET_KEY
+              valueFrom:
+                secretKeyRef: {name: minio-root, key: CONNECT_SECRET_KEY}
+            - name: MC_HOST_staybook
+              value: http://$(MINIO_ROOT_USER):$(MINIO_ROOT_PASSWORD)@minio.data.svc.cluster.local:9000
+            - {name: MC_CONFIG_DIR, value: /tmp/mc}
+          volumeMounts:
+            - {name: policy, mountPath: /policy}
+        - <<: *mc
+          name: retention
+          args: ["ilm", "rule", "add", "--expire-days", "365", "staybook/events-archive"]
+        - <<: *mc
+          name: policy
+          args: ["admin", "policy", "create", "staybook", "archive-writer", "/policy/archive-writer.json"]
+        - <<: *mc
+          name: user
+          args: ["admin", "user", "add", "staybook", "$(CONNECT_ACCESS_KEY)", "$(CONNECT_SECRET_KEY)"]
+        - <<: *mc
+          name: attach
+          args: ["admin", "policy", "attach", "staybook", "archive-writer", "--user", "$(CONNECT_ACCESS_KEY)"]
+      containers:
+        - <<: *mc
+          name: verify
+          args: ["ilm", "rule", "ls", "staybook/events-archive"]

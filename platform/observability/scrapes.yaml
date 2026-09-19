@@ -51,8 +51,8 @@ spec:
     matchNames: [kafka]
   selector:
     matchExpressions:
-      - {key: strimzi.io/kind, operator: In, values: [Kafka]}
-      - {key: strimzi.io/name, operator: In, values: [kafka-kafka, kafka-kafka-exporter]}
+      - {key: strimzi.io/kind, operator: In, values: [Kafka, KafkaConnect]}
+      - {key: strimzi.io/name, operator: In, values: [kafka-kafka, kafka-kafka-exporter, archive-connect-connect]}
   podMetricsEndpoints:
     - port: tcp-prometheus
       path: /metrics
@@ -167,3 +167,20 @@ spec:
       app.kubernetes.io/name: postgres
   endpoints:
     - port: http-metrics
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: minio
+  namespace: observability
+spec:
+  namespaceSelector:
+    matchNames: [data]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: minio
+  endpoints:
+    - port: http-s3
+      path: /minio/v2/metrics/cluster
+    - port: http-s3
+      path: /minio/v2/metrics/bucket

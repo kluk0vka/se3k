@@ -147,3 +147,39 @@ resource "kubernetes_secret_v1" "mongo_init" {
     { for s in local.mongo_services : "${upper(replace(s, "-service", ""))}_PASSWORD" => random_password.mongo[s].result }
   )
 }
+
+resource "random_password" "minio_root" {
+  length  = 32
+  special = false
+}
+
+resource "random_password" "minio_connect" {
+  length  = 32
+  special = false
+}
+
+resource "kubernetes_secret_v1" "minio_root" {
+  metadata {
+    name      = "minio-root"
+    namespace = kubernetes_namespace_v1.ns["data"].metadata[0].name
+    labels    = local.common_labels
+  }
+  data = {
+    MINIO_ROOT_USER     = "staybook-admin"
+    MINIO_ROOT_PASSWORD = random_password.minio_root.result
+    CONNECT_ACCESS_KEY  = "archive-connect"
+    CONNECT_SECRET_KEY  = random_password.minio_connect.result
+  }
+}
+
+resource "kubernetes_secret_v1" "minio_archive_writer" {
+  metadata {
+    name      = "minio-archive-writer"
+    namespace = kubernetes_namespace_v1.ns["kafka"].metadata[0].name
+    labels    = local.common_labels
+  }
+  data = {
+    AWS_ACCESS_KEY_ID     = "archive-connect"
+    AWS_SECRET_ACCESS_KEY = random_password.minio_connect.result
+  }
+}
